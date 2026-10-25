@@ -1,80 +1,293 @@
-# FleetTrack
+# FleetTrack --- Vehicle Fleet Management System
 
-Spring Boot 4 / Java 21 backend for managing a vehicle fleet: vehicles, drivers, maintenance history,
-live GPS tracking over WebSocket, Redis caching + pub/sub notifications, JWT security and PDF reports.
+FleetTrack is a monolithic backend application built with **Java 21**
+and **Spring Boot**. It helps organizations manage vehicles, drivers,
+maintenance schedules, and vehicle location updates through a
+centralized platform.
 
-## Run it
+## Features
 
-1. Start PostgreSQL and Redis (needs `DB_PASSWORD` set):
-   `docker compose up -d`
-2. Set environment variables (see `.env.example`): `DB_PASSWORD`, `JWT_SECRET` (32+ chars).
-3. Create the first admin **once**: run the app with program argument `setup-admin` and the extra variables
-   `ADMIN_USERNAME`, `ADMIN_PASSWORD` (12+ chars). It prints `Admin created successfully.` and exits.
-4. Run the app normally. Swagger UI: http://localhost:2424/swagger-ui/index.html
-5. `POST /api/auth/login`, copy the token, click **Authorize** in Swagger and paste it.
+### Vehicle management
 
-Flyway applies `V1`, `V2`, `V3` automatically on startup (do not edit V1/V2 once applied).
+-   Create, retrieve, update, and delete vehicle records.
+-   Store vehicle details such as make, model, year, license plate, and
+    status.
+-   Support filtering, sorting, and pagination for list endpoints.
 
-## Roles
+### Driver management
 
-| Role | Can do |
-|------|--------|
-| `ADMIN` | everything |
-| `FLEET_MANAGER` | read everything, send vehicle locations, create/update/complete maintenance records |
+-   Maintain driver profiles, including license and contact information.
+-   Track driver-to-vehicle assignments.
 
-Missing/invalid token -> `401`. Wrong role -> `403`.
+### Maintenance management
 
-## Endpoints
+-   Record maintenance events and service history.
+-   Schedule maintenance reminders.
+-   Retain completed maintenance records for a configurable period and
+    clean up old records automatically.
 
-| Method + path | Description |
-|---|---|
-| `POST /api/auth/login` | get a JWT |
-| `GET /api/vehicles` | list. Filters: `search`, `status`, `modelYear`, `driverId`. Sort: `sort=modelYear,desc`. Page: `page`, `size` |
-| `GET/POST/PUT/DELETE /api/vehicles[/{id}]` | vehicle CRUD (write = ADMIN) |
-| `PUT /api/vehicles/{id}/location` | save GPS position + broadcast over WebSocket |
-| `PUT /api/vehicles/{id}/driver/{driverId}` / `DELETE /api/vehicles/{id}/driver` | assign / unassign driver |
-| `GET /api/drivers` | list. Filters: `search`, `active`. Sort: `sort=lastName,asc` |
-| `GET/POST/PUT/DELETE /api/drivers[/{id}]` | driver CRUD (write = ADMIN) |
-| `GET /api/drivers/{id}/vehicles` | vehicles assigned to a driver |
-| `GET /api/maintenance` | history. Filters: `vehicleId`, `completed`, `overdue` |
-| `POST/PUT/DELETE /api/maintenance[/{id}]`, `PATCH /api/maintenance/{id}/complete` | maintenance records (delete = ADMIN) |
-| `GET /api/summary` | dashboard numbers (cached 1 min) |
-| `GET /api/notifications` | latest notifications |
-| `GET /api/reports/fleet` | PDF report (fleet status, vehicles, maintenance, driver activity) |
+### Real-time vehicle locations
 
-Errors use RFC 7807 JSON (`title`, `status`, `detail`, and `errors` for validation failures).
+-   Stream vehicle location updates through WebSocket/STOMP.
+-   Configure permitted WebSocket origins.
 
-## Real-time tracking (WebSocket / STOMP)
+### Notifications and caching
 
-- Endpoint: `ws://localhost:2424/ws`
-- Send header `Authorization: Bearer <jwt>` in the STOMP `CONNECT` frame (same token as REST).
-- Subscribe to:
-  - `/topic/vehicles/locations` - every vehicle
-  - `/topic/vehicles/{id}/location` - one vehicle
-  - `/topic/notifications` - alerts
-- Messages are JSON text, e.g. `{"vehicleId":1,"licensePlate":"10-AB-123","latitude":40.4,"longitude":49.8,"status":"IN_USE","timestamp":"..."}`
-- Try it: open http://localhost:2424/tracking.html, paste a token, **Connect**, then send a location update.
+-   Use Redis for caching and recent-notification storage.
+-   Use Redis Pub/Sub to publish notification events where configured.
+-   Support real-time notification delivery to subscribed components.
 
-## Redis
+### Security and API quality
 
-- **Cache** (`CacheConfig`): `vehicles` and `drivers` 10 min, `fleet-summary` 1 min. Values are stored as JSON.
-  Updates/deletes evict the entry.
-- **Pub/Sub**: alerts are published to channel `fleet.notifications` and the last 100 are kept in a Redis list.
-  A subscriber forwards each one to WebSocket clients on `/topic/notifications`.
+-   Secure endpoints with Spring Security and JWT-based authentication.
+-   Support `ADMIN` and `FLEET_MANAGER` roles.
+-   Validate incoming request data and provide centralized error
+    handling.
+-   Document the REST API with Swagger/OpenAPI.
 
-## Scheduled jobs
+### Reports
 
-| Job | Default | What it does |
-|---|---|---|
-| `MaintenanceReminderJob` | daily 08:00 | notifies for maintenance due within 3 days and for overdue maintenance (once each) |
-| `CleanupJob` | daily 02:30 | deletes completed maintenance records older than 90 days |
+-   Generate PDF reports for supported fleet information.
 
-Configure in `application.properties` (`app.maintenance.*`, `app.cleanup.*`). To test quickly set
-`app.maintenance.reminder-cron=*/30 * * * * *` (every 30 seconds).
-Notification publishing runs `@Async` so API calls never wait for Redis.
+## Technology Stack
+
+  Technology                 Purpose
+  -------------------------- ---------------------------------------------------------
+  Java 21                    Application runtime
+  Spring Boot                Backend application framework
+  Gradle                     Build and dependency management
+  PostgreSQL                 Relational data storage
+  Flyway                     Versioned database migrations
+  Spring Security + JWT      Authentication and role-based authorization
+  Spring WebSocket / STOMP   Real-time messaging
+  Redis                      Caching, notification channel, and recent notifications
+  MapStruct                  Object mapping
+  Swagger / OpenAPI          API documentation
+  Docker                     Local infrastructure services
+
+## Prerequisites
+
+Install the following before running the application:
+
+-   JDK 21
+-   Docker and Docker Compose
+-   Git
+-   A Gradle installation is optional if the project includes the Gradle
+    Wrapper (`./gradlew` or `gradlew.bat`).
+
+The application also requires PostgreSQL and Redis. They can be run
+locally or through Docker.
+
+## Configuration
+
+Application settings are managed in
+`src/main/resources/application.properties`.
+
+The project includes configurable schedules and notification settings
+similar to the following:
+
+``` properties
+# Maintenance reminders
+app.maintenance.reminder-days=3
+app.maintenance.reminder-cron=0 0 8 * * *
+
+# Cleanup of completed maintenance records
+app.cleanup.cron=0 30 2 * * *
+app.cleanup.completed-maintenance-retention-days=90
+
+# Notifications
+app.notifications.channel=fleet.notifications
+app.notifications.recent-key=fleet:notifications:recent
+
+# WebSocket
+app.websocket.allowed-origins=*
+```
+
+### Configuration reference
+
+  ----------------------------------------------------------------------------------------
+  Property                                             Meaning
+  ---------------------------------------------------- -----------------------------------
+  `app.maintenance.reminder-days`                      Number of days before scheduled
+                                                       maintenance to consider for a
+                                                       reminder.
+
+  `app.maintenance.reminder-cron`                      Cron schedule for running the
+                                                       maintenance reminder job.
+                                                       `0 0 8 * * *` runs daily at 08:00.
+
+  `app.cleanup.cron`                                   Cron schedule for cleanup.
+                                                       `0 30 2 * * *` runs daily at 02:30.
+
+  `app.cleanup.completed-maintenance-retention-days`   Retention period for completed
+                                                       maintenance records, in days.
+
+  `app.notifications.channel`                          Name of the notification channel
+                                                       used by the application.
+
+  `app.notifications.recent-key`                       Redis key used for
+                                                       recent-notification storage, if
+                                                       implemented by the notification
+                                                       service.
+
+  `app.websocket.allowed-origins`                      Allowed browser origins for
+                                                       WebSocket connections.
+  ----------------------------------------------------------------------------------------
+
+**Security note:** `*` is permissive and is generally suitable only for
+local development. For production, configure the exact frontend
+origin(s). Do not commit real passwords, JWT secrets, or other
+credentials to version control.
+
+> Cron jobs only run when scheduling is enabled and the corresponding
+> scheduled methods are implemented. The properties define configuration
+> values; the application code determines the precise reminder and
+> cleanup behavior.
+
+## Running the Application
+
+### 1. Clone the repository
+
+``` bash
+git clone <repository-url>
+cd <repository-directory>
+```
+
+Replace the placeholders with the actual repository URL and directory
+name.
+
+### 2. Start infrastructure
+
+Start PostgreSQL and Redis using your project's Docker Compose
+configuration, if one is provided:
+
+``` bash
+docker compose up -d
+```
+
+If the project does not include a Compose file, configure PostgreSQL and
+Redis separately and ensure they are reachable by the application.
+
+### 3. Configure the application
+
+Review `src/main/resources/application.properties`. Set the database
+connection, Redis connection, and security settings required by your
+implementation.
+
+Use environment variables or a local, untracked configuration file for
+secrets. Ensure the configured PostgreSQL database exists and that the
+application has the necessary permissions.
+
+### 4. Run the application
+
+On Linux or macOS:
+
+``` bash
+./gradlew bootRun
+```
+
+On Windows:
+
+``` bat
+gradlew.bat bootRun
+```
+
+If the Gradle Wrapper is not included, use an installed Gradle version:
+
+``` bash
+gradle bootRun
+```
+
+Flyway migrations should be applied automatically on startup when Flyway
+is configured and enabled.
+
+## API Documentation
+
+When the application is running and Swagger/OpenAPI is configured, open
+the API documentation at the Swagger UI URL configured by the project. A
+common Springdoc default is:
+
+``` text
+http://localhost:8080/swagger-ui/index.html
+```
+
+The actual port and documentation path may differ according to the
+application configuration.
+
+## Testing
+
+Run the automated test suite with the Gradle Wrapper.
+
+Linux/macOS:
+
+``` bash
+./gradlew test
+```
+
+Windows:
+
+``` bat
+gradlew.bat test
+```
+
+Build the project:
+
+``` bash
+./gradlew build
+```
+
+Tests that require PostgreSQL or Redis need those services to be
+available, unless the test configuration uses substitutes.
+
+## Scheduled Jobs
+
+The configured cron expressions use Spring's six-field format: **second
+minute hour day-of-month month day-of-week**.
+
+-   **Maintenance reminders:** daily at 08:00, using the configured
+    three-day reminder window.
+-   **Maintenance cleanup:** daily at 02:30, using the configured 90-day
+    retention period.
+
+These schedules use the application's configured timezone. Confirm the
+deployment timezone if the jobs must run at a particular local time.
+Cleanup behavior should be verified carefully to avoid deleting records
+that must be retained.
+
+## Project Structure
+
+The exact package layout depends on the implementation. A typical
+layered Spring Boot backend can be organized as follows:
+
+``` text
+src/
+└── main/
+    ├── java/
+    │   └── .../
+    │       ├── config/         # Security, WebSocket, and application configuration
+    │       ├── controller/     # REST endpoints
+    │       ├── dto/             # Request and response models
+    │       ├── entity/          # Persistence entities
+    │       ├── repository/      # Database access
+    │       ├── service/         # Business logic
+    │       └── ...              # Mapping, exceptions, scheduled jobs, etc.
+    └── resources/
+        ├── application.properties
+        └── db/migration/        # Flyway migration scripts
+```
+
+Treat this as a suggested structure, not a guarantee of the current
+repository layout.
 
 ## Notes
 
-- With several app instances, protect the scheduled jobs with a lock (e.g. ShedLock).
-- `app.websocket.allowed-origins=*` is for development; restrict it in production.
-- `logging.level.org.springframework.security=TRACE` is very noisy; lower it when you are done debugging.
+-   The backend is designed as a monolithic Spring Boot application.
+-   Database schema changes should be managed through Flyway migrations.
+-   Keep secrets out of source control.
+-   Restrict WebSocket origins in production.
+-   Verify role permissions, validation, pagination, scheduled jobs, and
+    notification delivery as part of acceptance testing.
+
+## License
+
+Add the license and attribution details applicable to this repository.
