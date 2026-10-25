@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FleetTrack - live tracking demo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 860px; margin: 24px auto; padding: 0 16px; }
+  fieldset { margin-bottom: 16px; }
+  input { padding: 4px 6px; }
+  button { padding: 5px 12px; cursor: pointer; }
+  #log { background: #111; color: #9f9; padding: 10px; height: 320px; overflow: auto;
+         font: 12px/1.5 monospace; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h2>FleetTrack - live tracking demo</h2>
+
+<fieldset>
+  <legend>1. Connect (paste the JWT from POST /api/auth/login)</legend>
+  <input id="token" size="70" placeholder="JWT token">
+  <button onclick="connect()">Connect</button>
+  <button onclick="disconnect()">Disconnect</button>
+  <span id="state">disconnected</span>
+</fieldset>
+
+<fieldset>
+  <legend>2. Send a location update (REST) - it appears below via WebSocket</legend>
+  Vehicle id <input id="vid" size="4" value="1">
+  Lat <input id="lat" size="9" value="40.4093">
+  Lon <input id="lon" size="9" value="49.8671">
+  <button onclick="sendLocation()">PUT /api/vehicles/{id}/location</button>
+</fieldset>
+
+<div id="log"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
+<script>
+  let client = null;
+  const logEl = document.getElementById('log');
+  const stateEl = document.getElementById('state');
+  const log = (m) => { logEl.textContent += new Date().toLocaleTimeString() + '  ' + m + '\n';
+                       logEl.scrollTop = logEl.scrollHeight; };
+
+  function connect() {
+    const token = document.getElementById('token').value.trim();
+    if (!token) { log('Paste a token first'); return; }
+    if (client) client.deactivate();
+
+    const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
+    client = new StompJs.Client({
+      brokerURL: scheme + '://' + location.host + '/ws',
+      connectHeaders: { Authorization: 'Bearer ' + token },
+      reconnectDelay: 0,
+      onConnect: () => {
+        stateEl.textContent = 'connected';
+        log('CONNECTED');
+        client.subscribe('/topic/vehicles/locations', m => log('LOCATION     ' + m.body));
+        client.subscribe('/topic/notifications',      m => log('NOTIFICATION ' + m.body));
+      },
+      onStompError: f => { stateEl.textContent = 'error'; log('STOMP ERROR ' + (f.headers['message'] || '')); },
+      onWebSocketClose: () => { stateEl.textContent = 'disconnected'; log('socket closed'); }
+    });
+    client.activate();
+  }
+
+  function disconnect() { if (client) client.deactivate(); }
+
+  async function sendLocation() {
+    const token = document.getElementById('token').value.trim();
+    const id = document.getElementById('vid').value;
+    const res = await fetch('/api/vehicles/' + id + '/location', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({
+        latitude: parseFloat(document.getElementById('lat').value),
+        longitude: parseFloat(document.getElementById('lon').value)
+      })
+    });
+    log('REST PUT -> HTTP ' + res.status);
+  }
+</script>
+</body>
+</html>

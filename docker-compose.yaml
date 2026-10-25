@@ -1,0 +1,38 @@
+
+services:
+  postgres:
+    image: postgres:17
+    container_name: fleettrack-postgres
+    environment:
+      POSTGRES_DB: fleettrack
+      POSTGRES_USER: fleettrack
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
+    ports:
+      - "5433:5432"
+    volumes:
+      - fleettrack_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fleettrack -d fleettrack"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: fleettrack-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - fleettrack_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  fleettrack_postgres_data:
+  fleettrack_redis_data:
