@@ -34,9 +34,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Builds the fleet PDF report: fleet status, vehicles, maintenance log and driver activity.
- */
 @Service
 @RequiredArgsConstructor
 public class PdfReportService {
@@ -90,10 +87,6 @@ public class PdfReportService {
 
         return out.toByteArray();
     }
-
-    // ------------------------------------------------------------------
-    // Sections
-    // ------------------------------------------------------------------
 
     private void addStatusSection(Document document, List<Vehicle> vehicles) throws Exception {
         document.add(new Paragraph("1. Fleet status", SECTION));
@@ -201,10 +194,6 @@ public class PdfReportService {
         }
         document.add(table);
     }
-
-    // ------------------------------------------------------------------
-    // Helpers
-    // ------------------------------------------------------------------
 
     private PdfPTable newTable(float[] widths) {
         PdfPTable table = new PdfPTable(widths);

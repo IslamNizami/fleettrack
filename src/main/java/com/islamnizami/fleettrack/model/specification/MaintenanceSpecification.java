@@ -22,7 +22,6 @@ public final class MaintenanceSpecification {
                         : cb.equal(root.get("completed"), completed);
     }
 
-    /** overdue=true -> not completed and due date already passed. */
     public static Specification<MaintenanceRecord> isOverdue(Boolean overdue) {
         return (root, query, cb) -> {
             if (overdue == null || !overdue) {

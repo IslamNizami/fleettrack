@@ -46,7 +46,6 @@ public final class VehicleSpecification {
         };
     }
 
-    /** Loads the driver in the same query (avoids N+1 when mapping a page). Skipped for count queries. */
     public static Specification<Vehicle> fetchDriver(){
         return (root, query, cb) -> {
             if (query != null && !Long.class.equals(query.getResultType())

@@ -16,12 +16,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Component;
 
-/**
- * Authenticates WebSocket clients with the same JWT used by the REST API.
- *  - CONNECT must carry "Authorization: Bearer <jwt>" or the connection is refused.
- *  - Every later frame must belong to an authenticated session.
- *  - Clients may only send to /app/**, never straight to /topic/** (only the server broadcasts).
- */
+
 @Component
 @RequiredArgsConstructor
 public class StompAuthChannelInterceptor implements ChannelInterceptor {

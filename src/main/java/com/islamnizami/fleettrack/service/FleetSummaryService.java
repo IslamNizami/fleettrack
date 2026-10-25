@@ -22,7 +22,6 @@ public class FleetSummaryService {
     private final DriverRepository driverRepository;
     private final MaintenanceRecordRepository maintenanceRepository;
 
-    /** Dashboard numbers: cached in Redis for 1 minute (see CacheConfig). */
     @Transactional(readOnly = true)
     @Cacheable(value = "fleet-summary", key = "'current'")
     public FleetSummaryResponse getSummary() {

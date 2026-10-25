@@ -9,11 +9,7 @@ import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 
-/**
- * Receives messages from the Redis channel and forwards them to connected WebSocket clients
- * on /topic/notifications. Because it goes through Redis, every app instance forwards the
- * notification to its own WebSocket clients.
- */
+
 @Slf4j
 @Component
 @RequiredArgsConstructor

@@ -14,13 +14,7 @@ import org.springframework.data.redis.serializer.RedisSerializationContext.Seria
 
 import java.time.Duration;
 
-/**
- * Redis cache with JSON values and an expiry per cache.
- *
- *   vehicles       -> VehicleResponse      10 minutes
- *   drivers        -> DriverResponse       10 minutes
- *   fleet-summary  -> FleetSummaryResponse  1 minute
- */
+
 @Configuration
 public class CacheConfig {
 
@@ -39,7 +33,6 @@ public class CacheConfig {
                         typed(defaults, DriverResponse.class, Duration.ofMinutes(10)))
                 .withCacheConfiguration("fleet-summary",
                         typed(defaults, FleetSummaryResponse.class, Duration.ofMinutes(1)))
-                // evictions/puts happen after the DB transaction commits
                 .transactionAware()
                 .build();
     }

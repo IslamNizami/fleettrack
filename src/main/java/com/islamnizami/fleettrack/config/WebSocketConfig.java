@@ -9,14 +9,7 @@ import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBr
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
-/**
- * STOMP over WebSocket.
- *
- *   connect:    ws://localhost:2424/ws   (STOMP header  Authorization: Bearer <jwt>)
- *   subscribe:  /topic/vehicles/locations
- *               /topic/vehicles/{id}/location
- *               /topic/notifications
- */
+
 @Configuration
 @EnableWebSocketMessageBroker
 @RequiredArgsConstructor

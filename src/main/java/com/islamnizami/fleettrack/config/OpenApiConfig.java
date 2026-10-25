@@ -14,7 +14,6 @@ import org.springframework.context.annotation.Configuration;
                 version = "1.0",
                 description = "Vehicle fleet management: vehicles, drivers, maintenance, "
                         + "real-time tracking, notifications and reports."),
-        // applies the JWT to every endpoint in Swagger UI (Authorize button)
         security = @SecurityRequirement(name = "bearerAuth")
 )
 @SecurityScheme(
